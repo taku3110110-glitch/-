@@ -248,6 +248,16 @@
             color: white;
         }
 
+        .modal-btn.cancel {
+            background: #e2e8f0;
+            color: #475569;
+            margin-top: 5px;
+        }
+
+        .modal-btn.cancel:hover {
+            background: #cbd5e1;
+        }
+
         .control-btns {
             display: flex;
             gap: 10px;
@@ -435,23 +445,35 @@
 
             if (candidates.length > 1) {
                 // 複数アクシデントの選択モーダル
+                const btnConfigs = candidates.map(c => ({
+                    label: `${c.accident} (ダメージ ${c.dmg} / コスト ${c.cost})`,
+                    class: 'primary',
+                    action: () => askUseCost(cardName, c, candidates)
+                }));
+                // キャンセル・戻るボタン追加
+                btnConfigs.push({
+                    label: '↩️ カード選択に戻る',
+                    class: 'cancel',
+                    action: hideModal
+                });
+
                 showModal(
                     `「${cardName}」の対象アクシデントを選択`,
                     '対応するアクシデントを選択してください。',
-                    candidates.map(c => ({
-                        label: `${c.accident} (ダメージ ${c.dmg} / コスト ${c.cost})`,
-                        class: 'primary',
-                        action: () => askUseCost(cardName, c)
-                    }))
+                    btnConfigs
                 );
             } else {
-                askUseCost(cardName, candidates[0]);
+                askUseCost(cardName, candidates[0], null);
             }
         }
 
         // コスト使用確認モーダル
-        function askUseCost(cardName, selectedData) {
+        function askUseCost(cardName, selectedData, parentCandidates) {
             const { accident, dmg, cost } = selectedData;
+            
+            // 戻るアクション（複数候補から来た場合は候補選択へ、1つの場合はモーダルを閉じる）
+            const backAction = parentCandidates ? () => onCardSelect(cardName, parentCandidates) : hideModal;
+
             showModal(
                 `コスト使用の選択: 【${cardName}】`,
                 `対象: ${accident}<br>コスト:${cost} / 想定ダメージ:${dmg}`,
@@ -459,19 +481,24 @@
                     {
                         label: `コストを使用する (${cost})`,
                         class: 'primary',
-                        action: () => processTurn(cardName, selectedData, true)
+                        action: () => processTurn(cardName, selectedData, true, backAction)
                     },
                     {
                         label: `コストを使用しない (受けるダメージ: ${ACCIDENT_DAMAGE[accident]})`,
                         class: 'secondary',
-                        action: () => processTurn(cardName, selectedData, false)
+                        action: () => processTurn(cardName, selectedData, false, backAction)
+                    },
+                    {
+                        label: '↩️ 戻る',
+                        class: 'cancel',
+                        action: backAction
                     }
                 ]
             );
         }
 
         // ターン実行ロジック
-        function processTurn(cardName, selectedData, useCost) {
+        function processTurn(cardName, selectedData, useCost, backAction) {
             hideModal();
             const { accident, dmg, cost: reqCost } = selectedData;
             let damageTaken = 0;
@@ -515,6 +542,11 @@
                                     addLog(`Turn ${gameState.turn}: 【${cardName}】失敗... 400 ダメージ`, 'alert');
                                     applyDamageAndNext(cardName, 400, true);
                                 }
+                            },
+                            {
+                                label: '↩️ 戻る',
+                                class: 'cancel',
+                                action: () => askUseCost(cardName, selectedData, null)
                             }
                         ]
                     );
