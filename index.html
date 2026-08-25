@@ -35,32 +35,41 @@
             text-align: center;
             background: var(--primary-color);
             color: white;
-            padding: 20px 15px;
+            padding: 15px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         header h1 {
-            font-size: 1.4rem;
-            margin-bottom: 5px;
+            font-size: 1.3rem;
+            margin-bottom: 4px;
         }
 
         header p {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             opacity: 0.9;
+        }
+
+        /* 画面切り替え表示制御 */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
         }
 
         .status-board {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .status-card {
             background: var(--card-bg);
-            padding: 15px 10px;
+            padding: 12px 8px;
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -68,14 +77,14 @@
         }
 
         .status-card .label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #666;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             font-weight: bold;
         }
 
         .status-card .value {
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: bold;
             color: var(--primary-color);
         }
@@ -88,11 +97,11 @@
             background: #1e272e;
             color: #00d8d6;
             font-family: monospace;
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
-            height: 150px;
+            height: 140px;
             overflow-y: auto;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             font-size: 0.85rem;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
         }
@@ -106,10 +115,30 @@
         .log-entry.success { color: #0be881; }
         .log-entry.info { color: #ffd32a; }
 
+        .main-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(41, 128, 185, 0.3);
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .main-btn:hover {
+            background: #2471a3;
+            transform: translateY(-2px);
+        }
+
         .section-title {
             font-size: 1.1rem;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             color: var(--primary-color);
             display: flex;
             justify-content: space-between;
@@ -120,7 +149,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 10px;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .card-btn {
@@ -144,10 +173,6 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        .card-btn:active {
-            transform: translateY(0);
-        }
-
         .card-name {
             font-weight: bold;
             font-size: 0.95rem;
@@ -166,6 +191,30 @@
             padding: 2px 6px;
             border-radius: 4px;
             margin-bottom: 4px;
+        }
+
+        .back-nav-btn {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .reset-btn {
+            background: #94a3b8;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            width: 100%;
         }
 
         /* Modal / Choices Overlay */
@@ -228,57 +277,11 @@
             transition: background 0.2s;
         }
 
-        .modal-btn.primary {
-            background: var(--accent-color);
-            color: white;
-        }
-
-        .modal-btn.secondary {
-            background: #94a3b8;
-            color: white;
-        }
-
-        .modal-btn.danger {
-            background: var(--danger-color);
-            color: white;
-        }
-
-        .modal-btn.success {
-            background: var(--success-color);
-            color: white;
-        }
-
-        .modal-btn.cancel {
-            background: #e2e8f0;
-            color: #475569;
-            margin-top: 5px;
-        }
-
-        .modal-btn.cancel:hover {
-            background: #cbd5e1;
-        }
-
-        .control-btns {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .reset-btn {
-            background: #64748b;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: bold;
-            width: 100%;
-        }
-
-        .reset-btn:hover {
-            background: #475569;
-        }
+        .modal-btn.primary { background: var(--accent-color); color: white; }
+        .modal-btn.secondary { background: #94a3b8; color: white; }
+        .modal-btn.danger { background: var(--danger-color); color: white; }
+        .modal-btn.success { background: var(--success-color); color: white; }
+        .modal-btn.cancel { background: #e2e8f0; color: #475569; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -288,34 +291,44 @@
         <p>5ターンを生き残れ！</p>
     </header>
 
-    <div class="status-board">
-        <div class="status-card turn">
-            <div class="label">ターン</div>
-            <div class="value" id="turn-val">1 / 5</div>
+    <!-- 画面1: メイン画面 (ステータス・ログ・アクション) -->
+    <div id="main-screen" class="screen active">
+        <div class="status-board">
+            <div class="status-card turn">
+                <div class="label">ターン</div>
+                <div class="value" id="turn-val">1 / 5</div>
+            </div>
+            <div class="status-card hp">
+                <div class="label">HP</div>
+                <div class="value" id="hp-val">1100</div>
+            </div>
+            <div class="status-card cost">
+                <div class="label">コスト</div>
+                <div class="value" id="cost-val">1200</div>
+            </div>
         </div>
-        <div class="status-card hp">
-            <div class="label">HP</div>
-            <div class="value" id="hp-val">1100</div>
+
+        <button class="main-btn" id="open-select-btn" onclick="showCardScreen()">🎴 解決策（カード）を選択する</button>
+
+        <div class="log-container" id="game-log">
+            <div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>
         </div>
-        <div class="status-card cost">
-            <div class="label">コスト</div>
-            <div class="value" id="cost-val">1200</div>
+
+        <button class="reset-btn" onclick="resetGame()">🔄 ゲームやり直し</button>
+    </div>
+
+    <!-- 画面2: カード選択専用画面 -->
+    <div id="card-screen" class="screen">
+        <button class="back-nav-btn" onclick="showMainScreen()">⬅️ メイン画面に戻る</button>
+
+        <div class="section-title">
+            <span>解決策（カード）を選択</span>
+        </div>
+
+        <div class="cards-grid" id="cards-container">
+            <!-- Cards generated by JS -->
         </div>
     </div>
-
-    <div class="log-container" id="game-log">
-        <div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>
-    </div>
-
-    <div class="section-title">
-        <span>解決策（カード）を選択</span>
-    </div>
-
-    <div class="cards-grid" id="cards-container">
-        <!-- Cards generated by JS -->
-    </div>
-
-    <button class="reset-btn" onclick="resetGame()">🔄 ゲームやり直し</button>
 
     <!-- Dynamic Modal for Interactive Choices -->
     <div class="modal-overlay" id="modal-overlay">
@@ -385,6 +398,8 @@
         };
 
         // UI Element Refs
+        const mainScreen = document.getElementById('main-screen');
+        const cardScreen = document.getElementById('card-screen');
         const hpValEl = document.getElementById('hp-val');
         const costValEl = document.getElementById('cost-val');
         const turnValEl = document.getElementById('turn-val');
@@ -394,6 +409,18 @@
         const modalTitle = document.getElementById('modal-title');
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
+
+        // 画面切り替え関数
+        function showMainScreen() {
+            cardScreen.classList.remove('active');
+            mainScreen.classList.add('active');
+        }
+
+        function showCardScreen() {
+            if (gameState.isGameOver) return;
+            mainScreen.classList.remove('active');
+            cardScreen.classList.add('active');
+        }
 
         // ゲーム初期化
         function initUI() {
@@ -444,13 +471,11 @@
             if (gameState.isGameOver) return;
 
             if (candidates.length > 1) {
-                // 複数アクシデントの選択モーダル
                 const btnConfigs = candidates.map(c => ({
                     label: `${c.accident} (ダメージ ${c.dmg} / コスト ${c.cost})`,
                     class: 'primary',
                     action: () => askUseCost(cardName, c, candidates)
                 }));
-                // キャンセル・戻るボタン追加
                 btnConfigs.push({
                     label: '↩️ カード選択に戻る',
                     class: 'cancel',
@@ -470,8 +495,6 @@
         // コスト使用確認モーダル
         function askUseCost(cardName, selectedData, parentCandidates) {
             const { accident, dmg, cost } = selectedData;
-            
-            // 戻るアクション（複数候補から来た場合は候補選択へ、1つの場合はモーダルを閉じる）
             const backAction = parentCandidates ? () => onCardSelect(cardName, parentCandidates) : hideModal;
 
             showModal(
@@ -504,12 +527,10 @@
             let damageTaken = 0;
 
             if (!useCost) {
-                // 分岐 A: コストを使用しない
                 damageTaken = ACCIDENT_DAMAGE[accident];
                 addLog(`Turn ${gameState.turn}: コスト不使用 -> アクシデント【${accident}】のダメージ (${damageTaken}) を受託`, 'alert');
                 applyDamageAndNext(cardName, damageTaken, false);
             } else {
-                // 分岐 B: コストを使用する
                 if (gameState.cost < reqCost) {
                     const shortage = reqCost - gameState.cost;
                     addLog(`⚠️ コスト不足！(不足: ${shortage}) 不足分をHPから引きます。`, 'alert');
@@ -519,7 +540,6 @@
                     gameState.cost -= reqCost;
                 }
 
-                // X判定（成功/失敗）の判定が必要か？
                 if (dmg === 'X') {
                     showModal(
                         `【判定】${cardName}`,
@@ -561,6 +581,9 @@
         function applyDamageAndNext(cardName, damageTaken, usedCost) {
             gameState.hp -= damageTaken;
             updateStatus();
+
+            // カード選択後に自動的にメイン画面へ戻す
+            showMainScreen();
 
             // HPチェック
             if (gameState.hp <= 0) {
@@ -626,6 +649,7 @@
                 isGameOver: false
             };
             hideModal();
+            showMainScreen();
             logEl.innerHTML = '<div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>';
             updateStatus();
         }
