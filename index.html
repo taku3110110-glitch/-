@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資格試験ミッション：5ターンを生き残れ</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #2980b9;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --danger-color: #e74c3c;
+            --success-color: #2ecc71;
+            --text-color: #333333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            background: var(--primary-color);
+            color: white;
+            padding: 20px 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            margin-bottom: 5px;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .status-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: var(--card-bg);
+            padding: 15px 10px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e1e8ed;
+        }
+
+        .status-card .label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .status-card .value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .status-card.hp .value { color: #e74c3c; }
+        .status-card.cost .value { color: #f39c12; }
+        .status-card.turn .value { color: #2980b9; }
+
+        .log-container {
+            background: #1e272e;
+            color: #00d8d6;
+            font-family: monospace;
+            padding: 15px;
+            border-radius: 10px;
+            height: 150px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .log-entry.alert { color: #ff5e57; }
+        .log-entry.success { color: #0be881; }
+        .log-entry.info { color: #ffd32a; }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .card-btn {
+            background: var(--card-bg);
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 85px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+
+        .card-btn:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-btn:active {
+            transform: translateY(0);
+        }
+
+        .card-name {
+            font-weight: bold;
+            font-size: 0.95rem;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        .card-details {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .card-accident {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* Modal / Choices Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .modal h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .modal-desc {
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            color: #475569;
+        }
+
+        .modal-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: #94a3b8;
+            color: white;
+        }
+
+        .modal-btn.danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .modal-btn.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .control-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .reset-btn {
+            background: #64748b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .reset-btn:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>資格試験ミッション</h1>
+        <p>5ターンを生き残れ！</p>
+    </header>
+
+    <div class="status-board">
+        <div class="status-card turn">
+            <div class="label">ターン</div>
+            <div class="value" id="turn-val">1 / 5</div>
+        </div>
+        <div class="status-card hp">
+            <div class="label">HP</div>
+            <div class="value" id="hp-val">1100</div>
+        </div>
+        <div class="status-card cost">
+            <div class="label">コスト</div>
+            <div class="value" id="cost-val">1200</div>
+        </div>
+    </div>
+
+    <div class="log-container" id="game-log">
+        <div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>
+    </div>
+
+    <div class="section-title">
+        <span>解決策（カード）を選択</span>
+    </div>
+
+    <div class="cards-grid" id="cards-container">
+        <!-- Cards generated by JS -->
+    </div>
+
+    <button class="reset-btn" onclick="resetGame()">🔄 ゲームやり直し</button>
+
+    <!-- Dynamic Modal for Interactive Choices -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h2 id="modal-title">選択</h2>
+            <div class="modal-desc" id="modal-desc">説明テキスト</div>
+            <div class="modal-btns" id="modal-btns">
+                <!-- Action buttons injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 各アクシデントの被害想定（コスト非使用時のダメージ）
+        const ACCIDENT_DAMAGE = {
+            "地震": 300,
+            "隕石": 400,
+            "水不足": 350,
+            "通信遮断": 250,
+            "半導体不足": 200,
+            "大気汚染": 350,
+            "パンデミック": 350,
+            "酸素不足": 350,
+            "停電": 300
+        };
+
+        // カード定義データ
+        const CARDS = {
+            "耐震強化": [{ accident: "地震", dmg: 90, cost: 400 }],
+            "避難シェルター": [
+                { accident: "地震", dmg: 125, cost: 220 },
+                { accident: "隕石", dmg: 330, cost: 250 }
+            ],
+            "物資提供": [{ accident: "地震", dmg: 260, cost: 180 }],
+            "隕石迎撃": [{ accident: "隕石", dmg: "X", cost: 450 }],
+            "長距離避難": [{ accident: "隕石", dmg: 350, cost: 200 }],
+            "コールドスリープ": [{ accident: "パンデミック", dmg: 30, cost: 460 }],
+            "治療薬開発": [{ accident: "パンデミック", dmg: 230, cost: 390 }],
+            "感染者隔離": [{ accident: "パンデミック", dmg: 320, cost: 220 }],
+            "節水": [{ accident: "水不足", dmg: 290, cost: 0 }],
+            "地下水採掘": [{ accident: "水不足", dmg: 110, cost: 420 }],
+            "新飲料調査": [{ accident: "水不足", dmg: "X", cost: 290 }],
+            "マスク": [{ accident: "大気汚染", dmg: 245, cost: 70 }],
+            "空気清浄機": [{ accident: "大気汚染", dmg: 50, cost: 200 }],
+            "汚染物質規制": [{ accident: "大気汚染", dmg: 300, cost: 50 }],
+            "原子力発電": [{ accident: "停電", dmg: "X", cost: 350 }],
+            "バイオ発電": [{ accident: "停電", dmg: 275, cost: 200 }],
+            "太陽光発電": [{ accident: "停電", dmg: 185, cost: 150 }],
+            "待機": [{ accident: "通信遮断", dmg: 230, cost: 0 }],
+            "地球の衛星を利用": [{ accident: "通信遮断", dmg: 180, cost: 90 }],
+            "基地局車を利用": [{ accident: "通信遮断", dmg: 140, cost: 320 }],
+            "新資源開発": [{ accident: "半導体不足", dmg: 60, cost: 250 }],
+            "惑星調査": [{ accident: "半導体不足", dmg: "X", cost: 450 }],
+            "再利用": [{ accident: "半導体不足", dmg: 150, cost: 100 }],
+            "水を電気分解": [{ accident: "酸素不足", dmg: 170, cost: 250 }],
+            "地球から輸送": [{ accident: "酸素不足", dmg: "X", cost: 400 }],
+            "植物生成": [{ accident: "酸素不足", dmg: 200, cost: 90 }]
+        };
+
+        // ゲーム状態
+        let gameState = {
+            hp: 1100,
+            cost: 1200,
+            turn: 1,
+            maxTurns: 5,
+            isGameOver: false
+        };
+
+        // UI Element Refs
+        const hpValEl = document.getElementById('hp-val');
+        const costValEl = document.getElementById('cost-val');
+        const turnValEl = document.getElementById('turn-val');
+        const logEl = document.getElementById('game-log');
+        const cardsContainer = document.getElementById('cards-container');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+        const modalBtns = document.getElementById('modal-btns');
+
+        // ゲーム初期化
+        function initUI() {
+            renderCards();
+            updateStatus();
+        }
+
+        function updateStatus() {
+            hpValEl.innerText = gameState.hp;
+            costValEl.innerText = gameState.cost;
+            turnValEl.innerText = `${gameState.turn} / ${gameState.maxTurns}`;
+        }
+
+        function addLog(text, type = '') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerText = text;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function renderCards() {
+            cardsContainer.innerHTML = '';
+            for (const [cardName, candidates] of Object.entries(CARDS)) {
+                const btn = document.createElement('div');
+                btn.className = 'card-btn';
+                
+                let detailsText = '';
+                if (candidates.length === 1) {
+                    const c = candidates[0];
+                    detailsText = `<span class="card-accident">${c.accident}</span><br>被:${c.dmg} / C:${c.cost}`;
+                } else {
+                    detailsText = `<span class="card-accident">複数アクシデント</span><br>タップして選択`;
+                }
+
+                btn.innerHTML = `
+                    <div class="card-name">${cardName}</div>
+                    <div class="card-details">${detailsText}</div>
+                `;
+
+                btn.onclick = () => onCardSelect(cardName, candidates);
+                cardsContainer.appendChild(btn);
+            }
+        }
+
+        // カード選択時アクション
+        function onCardSelect(cardName, candidates) {
+            if (gameState.isGameOver) return;
+
+            if (candidates.length > 1) {
+                // 複数アクシデントの選択モーダル
+                showModal(
+                    `「${cardName}」の対象アクシデントを選択`,
+                    '対応するアクシデントを選択してください。',
+                    candidates.map(c => ({
+                        label: `${c.accident} (ダメージ ${c.dmg} / コスト ${c.cost})`,
+                        class: 'primary',
+                        action: () => askUseCost(cardName, c)
+                    }))
+                );
+            } else {
+                askUseCost(cardName, candidates[0]);
+            }
+        }
+
+        // コスト使用確認モーダル
+        function askUseCost(cardName, selectedData) {
+            const { accident, dmg, cost } = selectedData;
+            showModal(
+                `コスト使用の選択: 【${cardName}】`,
+                `対象: ${accident}<br>コスト:${cost} / 想定ダメージ:${dmg}`,
+                [
+                    {
+                        label: `コストを使用する (${cost})`,
+                        class: 'primary',
+                        action: () => processTurn(cardName, selectedData, true)
+                    },
+                    {
+                        label: `コストを使用しない (受けるダメージ: ${ACCIDENT_DAMAGE[accident]})`,
+                        class: 'secondary',
+                        action: () => processTurn(cardName, selectedData, false)
+                    }
+                ]
+            );
+        }
+
+        // ターン実行ロジック
+        function processTurn(cardName, selectedData, useCost) {
+            hideModal();
+            const { accident, dmg, cost: reqCost } = selectedData;
+            let damageTaken = 0;
+
+            if (!useCost) {
+                // 分岐 A: コストを使用しない
+                damageTaken = ACCIDENT_DAMAGE[accident];
+                addLog(`Turn ${gameState.turn}: コスト不使用 -> アクシデント【${accident}】のダメージ (${damageTaken}) を受託`, 'alert');
+                applyDamageAndNext(cardName, damageTaken, false);
+            } else {
+                // 分岐 B: コストを使用する
+                if (gameState.cost < reqCost) {
+                    const shortage = reqCost - gameState.cost;
+                    addLog(`⚠️ コスト不足！(不足: ${shortage}) 不足分をHPから引きます。`, 'alert');
+                    gameState.hp -= shortage;
+                    gameState.cost = 0;
+                } else {
+                    gameState.cost -= reqCost;
+                }
+
+                // X判定（成功/失敗）の判定が必要か？
+                if (dmg === 'X') {
+                    showModal(
+                        `【判定】${cardName}`,
+                        '判定結果を選択してください。',
+                        [
+                            {
+                                label: '成功 (ダメージ: 0)',
+                                class: 'success',
+                                action: () => {
+                                    hideModal();
+                                    addLog(`Turn ${gameState.turn}: 【${cardName}】成功！ ダメージ 0`, 'success');
+                                    applyDamageAndNext(cardName, 0, true);
+                                }
+                            },
+                            {
+                                label: '失敗 (ダメージ: 400)',
+                                class: 'danger',
+                                action: () => {
+                                    hideModal();
+                                    addLog(`Turn ${gameState.turn}: 【${cardName}】失敗... 400 ダメージ`, 'alert');
+                                    applyDamageAndNext(cardName, 400, true);
+                                }
+                            }
+                        ]
+                    );
+                } else {
+                    damageTaken = dmg;
+                    addLog(`Turn ${gameState.turn}: 【${cardName}】を実行。ダメージ ${damageTaken}`);
+                    applyDamageAndNext(cardName, damageTaken, true);
+                }
+            }
+        }
+
+        function applyDamageAndNext(cardName, damageTaken, usedCost) {
+            gameState.hp -= damageTaken;
+            updateStatus();
+
+            // HPチェック
+            if (gameState.hp <= 0) {
+                gameState.isGameOver = true;
+                addLog(`💀 ゲームオーバー！ HPが0になりました。`, 'alert');
+                showModal(
+                    '💀 ゲームオーバー 💀',
+                    'HPが0以下になりました。ミッション失敗です。',
+                    [{ label: 'やり直す', class: 'primary', action: resetGame }]
+                );
+                return;
+            }
+
+            // コールドスリープ特殊効果
+            if (usedCost && cardName === "コールドスリープ") {
+                addLog("❄️ 【コールドスリープ】発動！次の1ターンをスキップします。", "info");
+                gameState.turn += 2;
+            } else {
+                gameState.turn += 1;
+            }
+
+            updateStatus();
+
+            // クリアチェック
+            if (gameState.turn > gameState.maxTurns) {
+                gameState.isGameOver = true;
+                addLog(`🎉 【試験終了】5ターンを生き残りました！ (残HP: ${gameState.hp}, 残コスト: ${gameState.cost})`, 'success');
+                showModal(
+                    '🎉 ミッションクリア！ 🎉',
+                    `5ターンを生き残りました！<br>最終ステータス -> 残HP: <b>${gameState.hp}</b> | 残コスト: <b>${gameState.cost}</b>`,
+                    [{ label: 'もう一度プレイ', class: 'primary', action: resetGame }]
+                );
+            }
+        }
+
+        // モーダル表示制御
+        function showModal(title, desc, buttons) {
+            modalTitle.innerText = title;
+            modalDesc.innerHTML = desc;
+            modalBtns.innerHTML = '';
+
+            buttons.forEach(btnConfig => {
+                const b = document.createElement('button');
+                b.className = `modal-btn ${btnConfig.class || 'primary'}`;
+                b.innerHTML = btnConfig.label;
+                b.onclick = btnConfig.action;
+                modalBtns.appendChild(b);
+            });
+
+            modalOverlay.classList.add('active');
+        }
+
+        function hideModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        function resetGame() {
+            gameState = {
+                hp: 1100,
+                cost: 1200,
+                turn: 1,
+                maxTurns: 5,
+                isGameOver: false
+            };
+            hideModal();
+            logEl.innerHTML = '<div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>';
+            updateStatus();
+        }
+
+        // 起動処理
+        initUI();
+    </script>
+</body>
+</html>
