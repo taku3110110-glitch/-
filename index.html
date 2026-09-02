@@ -11,6 +11,7 @@
             --bg-color: #f4f7f6;
             --card-bg: #ffffff;
             --danger-color: #e74c3c;
+            --warning-color: #f39c12;
             --success-color: #2ecc71;
             --text-color: #333333;
         }
@@ -51,7 +52,6 @@
             opacity: 0.9;
         }
 
-        /* 画面切り替え表示制御 */
         .screen {
             display: none;
         }
@@ -69,29 +69,67 @@
 
         .status-card {
             background: var(--card-bg);
-            padding: 12px 8px;
+            padding: 10px 8px;
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             border: 1px solid #e1e8ed;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .status-card .label {
             font-size: 0.75rem;
             color: #666;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
             font-weight: bold;
         }
 
         .status-card .value {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: bold;
             color: var(--primary-color);
+            margin-bottom: 4px;
         }
 
-        .status-card.hp .value { color: #e74c3c; }
-        .status-card.cost .value { color: #f39c12; }
-        .status-card.turn .value { color: #2980b9; }
+        .status-card.hp .value { color: var(--danger-color); }
+        .status-card.cost .value { color: var(--warning-color); }
+        .status-card.turn .value { color: var(--accent-color); }
+
+        .gauge-container {
+            width: 100%;
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+
+        .gauge-bar {
+            height: 100%;
+            width: 100%;
+            transition: width 0.4s ease, background-color 0.4s ease;
+            border-radius: 4px;
+        }
+
+        .gauge-bar.hp-bar {
+            background-color: var(--danger-color);
+        }
+
+        .gauge-bar.cost-bar {
+            background-color: var(--warning-color);
+        }
+
+        @keyframes pulse-danger {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .gauge-bar.danger-low {
+            animation: pulse-danger 1s infinite;
+        }
 
         .log-container {
             background: #1e272e;
@@ -230,7 +268,6 @@
             width: 100%;
         }
 
-        /* Modal / Choices Overlay */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -304,7 +341,6 @@
         <p>5ターンを生き残れ！</p>
     </header>
 
-    <!-- 画面1: メイン画面 (ステータス・ログ・アクション) -->
     <div id="main-screen" class="screen active">
         <div class="status-board">
             <div class="status-card turn">
@@ -314,10 +350,16 @@
             <div class="status-card hp">
                 <div class="label">HP</div>
                 <div class="value" id="hp-val">1100</div>
+                <div class="gauge-container">
+                    <div class="gauge-bar hp-bar" id="hp-gauge"></div>
+                </div>
             </div>
             <div class="status-card cost">
                 <div class="label">コスト</div>
                 <div class="value" id="cost-val">1200</div>
+                <div class="gauge-container">
+                    <div class="gauge-bar cost-bar" id="cost-gauge"></div>
+                </div>
             </div>
         </div>
 
@@ -330,7 +372,6 @@
         <button class="reset-btn" onclick="resetGame()">🔄 ゲームやり直し</button>
     </div>
 
-    <!-- 画面2: イベント選択画面 -->
     <div id="event-screen" class="screen">
         <button class="back-nav-btn" onclick="showMainScreen()">⬅️ メイン画面に戻る</button>
 
@@ -338,12 +379,9 @@
             <span>発生したイベントを選択</span>
         </div>
 
-        <div class="grid-list" id="events-container">
-            <!-- Dynamic Event Buttons -->
-        </div>
+        <div class="grid-list" id="events-container"></div>
     </div>
 
-    <!-- 画面3: 解決策選択画面 -->
     <div id="solution-screen" class="screen">
         <button class="back-nav-btn" onclick="showEventScreen()">⬅️ イベント選択に戻る</button>
 
@@ -351,24 +389,21 @@
             <span id="selected-event-title">解決策を選択</span>
         </div>
 
-        <div class="grid-list" id="solutions-container">
-            <!-- Dynamic Solution Card Buttons -->
-        </div>
+        <div class="grid-list" id="solutions-container"></div>
     </div>
 
-    <!-- Dynamic Modal for Interactive Choices -->
     <div class="modal-overlay" id="modal-overlay">
         <div class="modal">
             <h2 id="modal-title">選択</h2>
             <div class="modal-desc" id="modal-desc">説明テキスト</div>
-            <div class="modal-btns" id="modal-btns">
-                <!-- Action buttons injected dynamically -->
-            </div>
+            <div class="modal-btns" id="modal-btns"></div>
         </div>
     </div>
 
     <script>
-        // イベント別の想定ダメージ（コスト不使用時）
+        const MAX_HP = 1100;
+        const MAX_COST = 1200;
+
         const ACCIDENT_DAMAGE = {
             "通信遮断": 250,
             "地震": 300,
@@ -380,7 +415,6 @@
             "パンデミック": 350
         };
 
-        // イベントごとの3つの解決策（地震と隕石の避難シェルターを明確に分離）
         const EVENT_SOLUTIONS = {
             "通信遮断": [
                 { name: "地球の衛星を利用", dmg: 180, cost: 90 },
@@ -424,17 +458,15 @@
             ]
         };
 
-        // ゲーム状態
         let gameState = {
-            hp: 1100,
-            cost: 1200,
+            hp: MAX_HP,
+            cost: MAX_COST,
             turn: 1,
             maxTurns: 5,
             isGameOver: false,
             currentEvent: null
         };
 
-        // UI Element Refs
         const mainScreen = document.getElementById('main-screen');
         const eventScreen = document.getElementById('event-screen');
         const solutionScreen = document.getElementById('solution-screen');
@@ -442,6 +474,8 @@
         const hpValEl = document.getElementById('hp-val');
         const costValEl = document.getElementById('cost-val');
         const turnValEl = document.getElementById('turn-val');
+        const hpGaugeEl = document.getElementById('hp-gauge');
+        const costGaugeEl = document.getElementById('cost-gauge');
         const logEl = document.getElementById('game-log');
         
         const eventsContainer = document.getElementById('events-container');
@@ -453,7 +487,6 @@
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
 
-        // 画面切り替え制御
         function hideAllScreens() {
             mainScreen.classList.remove('active');
             eventScreen.classList.remove('active');
@@ -479,16 +512,25 @@
             solutionScreen.classList.add('active');
         }
 
-        // 初期表示・レンダリング
-        function initUI() {
-            renderEvents();
-            updateStatus();
-        }
-
         function updateStatus() {
-            hpValEl.innerText = gameState.hp;
-            costValEl.innerText = gameState.cost;
+            const currentHp = Math.max(0, gameState.hp);
+            const currentCost = Math.max(0, gameState.cost);
+
+            hpValEl.innerText = currentHp;
+            costValEl.innerText = currentCost;
             turnValEl.innerText = `${gameState.turn} / ${gameState.maxTurns}`;
+
+            const hpPct = Math.min(100, Math.max(0, (currentHp / MAX_HP) * 100));
+            const costPct = Math.min(100, Math.max(0, (currentCost / MAX_COST) * 100));
+
+            hpGaugeEl.style.width = `${hpPct}%`;
+            costGaugeEl.style.width = `${costPct}%`;
+
+            if (hpPct <= 30) {
+                hpGaugeEl.classList.add('danger-low');
+            } else {
+                hpGaugeEl.classList.remove('danger-low');
+            }
         }
 
         function addLog(text, type = '') {
@@ -499,7 +541,6 @@
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        // イベント一覧描画
         function renderEvents() {
             eventsContainer.innerHTML = '';
             for (const eventName of Object.keys(EVENT_SOLUTIONS)) {
@@ -511,7 +552,6 @@
             }
         }
 
-        // 解決策一覧描画（選択されたイベントに応じた3つの解決策）
         function renderSolutions(eventName) {
             solutionsContainer.innerHTML = '';
             const solutions = EVENT_SOLUTIONS[eventName];
@@ -528,7 +568,6 @@
             });
         }
 
-        // コスト使用確認モーダル
         function askUseCost(eventName, solData) {
             const { name, dmg, cost } = solData;
 
@@ -555,7 +594,6 @@
             );
         }
 
-        // ターン進行処理
         function processTurn(eventName, solData, useCost) {
             hideModal();
             const { name: cardName, dmg, cost: reqCost } = solData;
@@ -617,10 +655,8 @@
             gameState.hp -= damageTaken;
             updateStatus();
 
-            // ターン処理完了後はメイン画面へ自動遷移
             showMainScreen();
 
-            // HP判定
             if (gameState.hp <= 0) {
                 gameState.isGameOver = true;
                 addLog(`💀 ゲームオーバー！ HPが0になりました。`, 'alert');
@@ -632,7 +668,6 @@
                 return;
             }
 
-            // コールドスリープ特殊効果
             if (usedCost && cardName === "コールドスリープ") {
                 addLog("❄️ 【コールドスリープ】発動！次の1ターンをスキップします。", "info");
                 gameState.turn += 2;
@@ -642,7 +677,6 @@
 
             updateStatus();
 
-            // クリア判定
             if (gameState.turn > gameState.maxTurns) {
                 gameState.isGameOver = true;
                 addLog(`🎉 【試験終了】5ターンを生き残りました！ (残HP: ${gameState.hp}, 残コスト: ${gameState.cost})`, 'success');
@@ -654,7 +688,6 @@
             }
         }
 
-        // モーダル表示・非表示
         function showModal(title, desc, buttons) {
             modalTitle.innerText = title;
             modalDesc.innerHTML = desc;
@@ -677,8 +710,8 @@
 
         function resetGame() {
             gameState = {
-                hp: 1100,
-                cost: 1200,
+                hp: MAX_HP,
+                cost: MAX_COST,
                 turn: 1,
                 maxTurns: 5,
                 isGameOver: false,
@@ -690,8 +723,7 @@
             updateStatus();
         }
 
-        // 初期化実行
-        initUI();
+        renderEvents();
+        updateStatus();
     </script>
 </body>
-</html>
