@@ -13,6 +13,7 @@
             --danger-color: #e74c3c;
             --warning-color: #f39c12;
             --success-color: #2ecc71;
+            --timer-color: #8e44ad;
             --text-color: #333333;
         }
 
@@ -60,16 +61,17 @@
             display: block;
         }
 
+        /* ステータスボード（4列レイアウト） */
         .status-board {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .status-card {
             background: var(--card-bg);
-            padding: 10px 8px;
+            padding: 8px 5px;
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -80,28 +82,29 @@
         }
 
         .status-card .label {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #666;
             margin-bottom: 2px;
             font-weight: bold;
         }
 
         .status-card .value {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             color: var(--primary-color);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .status-card.hp .value { color: var(--danger-color); }
         .status-card.cost .value { color: var(--warning-color); }
         .status-card.turn .value { color: var(--accent-color); }
+        .status-card.timer .value { color: var(--timer-color); }
 
         .gauge-container {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background-color: #e2e8f0;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
             margin-top: 2px;
         }
@@ -110,7 +113,7 @@
             height: 100%;
             width: 100%;
             transition: width 0.4s ease, background-color 0.4s ease;
-            border-radius: 4px;
+            border-radius: 3px;
         }
 
         .gauge-bar.hp-bar {
@@ -119,6 +122,37 @@
 
         .gauge-bar.cost-bar {
             background-color: var(--warning-color);
+        }
+
+        /* タイマー専用コントロールバー */
+        .timer-control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .timer-btn {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .timer-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .timer-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         @keyframes pulse-danger {
@@ -361,6 +395,16 @@
                     <div class="gauge-bar cost-bar" id="cost-gauge"></div>
                 </div>
             </div>
+            <div class="status-card timer">
+                <div class="label">経過時間</div>
+                <div class="value" id="timer-val">00:00</div>
+            </div>
+        </div>
+
+        <div class="timer-control-bar">
+            <button class="timer-btn" id="btn-timer-start" onclick="startTimer()">▶️ スタート</button>
+            <button class="timer-btn" id="btn-timer-stop" onclick="stopTimer()">⏸️ 一時停止</button>
+            <button class="timer-btn" id="btn-timer-reset" onclick="resetTimer()">🔄 リセット</button>
         </div>
 
         <button class="main-btn" id="open-select-btn" onclick="showEventScreen()">⚠️ イベントを選択する</button>
@@ -464,7 +508,10 @@
             turn: 1,
             maxTurns: 5,
             isGameOver: false,
-            currentEvent: null
+            currentEvent: null,
+            timerSeconds: 0,
+            timerInterval: null,
+            isTimerRunning: false
         };
 
         const mainScreen = document.getElementById('main-screen');
@@ -474,9 +521,13 @@
         const hpValEl = document.getElementById('hp-val');
         const costValEl = document.getElementById('cost-val');
         const turnValEl = document.getElementById('turn-val');
+        const timerValEl = document.getElementById('timer-val');
         const hpGaugeEl = document.getElementById('hp-gauge');
         const costGaugeEl = document.getElementById('cost-gauge');
         const logEl = document.getElementById('game-log');
+        
+        const btnTimerStart = document.getElementById('btn-timer-start');
+        const btnTimerStop = document.getElementById('btn-timer-stop');
         
         const eventsContainer = document.getElementById('events-container');
         const solutionsContainer = document.getElementById('solutions-container');
@@ -486,6 +537,43 @@
         const modalTitle = document.getElementById('modal-title');
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
+
+        // タイマー制御関数
+        function startTimer() {
+            if (gameState.isTimerRunning) return;
+            gameState.isTimerRunning = true;
+            btnTimerStart.disabled = true;
+            btnTimerStop.disabled = false;
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timerSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (!gameState.isTimerRunning) return;
+            gameState.isTimerRunning = false;
+            btnTimerStart.disabled = false;
+            btnTimerStop.disabled = true;
+
+            if (gameState.timerInterval) {
+                clearInterval(gameState.timerInterval);
+                gameState.timerInterval = null;
+            }
+        }
+
+        function resetTimer() {
+            stopTimer();
+            gameState.timerSeconds = 0;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(gameState.timerSeconds / 60).toString().padStart(2, '0');
+            const secs = (gameState.timerSeconds % 60).toString().padStart(2, '0');
+            timerValEl.innerText = `${mins}:${secs}`;
+        }
 
         function hideAllScreens() {
             mainScreen.classList.remove('active');
@@ -659,10 +747,12 @@
 
             if (gameState.hp <= 0) {
                 gameState.isGameOver = true;
-                addLog(`💀 ゲームオーバー！ HPが0になりました。`, 'alert');
+                stopTimer();
+                const timeText = timerValEl.innerText;
+                addLog(`💀 ゲームオーバー！ HPが0になりました。(タイム: ${timeText})`, 'alert');
                 showModal(
                     '💀 ゲームオーバー 💀',
-                    'HPが0以下になりました。ミッション失敗です。',
+                    `HPが0以下になりました。<br>経過時間: <b>${timeText}</b>`,
                     [{ label: 'やり直す', class: 'primary', action: resetGame }]
                 );
                 return;
@@ -679,10 +769,12 @@
 
             if (gameState.turn > gameState.maxTurns) {
                 gameState.isGameOver = true;
-                addLog(`🎉 【試験終了】5ターンを生き残りました！ (残HP: ${gameState.hp}, 残コスト: ${gameState.cost})`, 'success');
+                stopTimer();
+                const timeText = timerValEl.innerText;
+                addLog(`🎉 【試験終了】5ターンを生き残りました！ (残HP: ${gameState.hp}, 残コスト: ${gameState.cost}, タイム: ${timeText})`, 'success');
                 showModal(
                     '🎉 ミッションクリア！ 🎉',
-                    `5ターンを生き残りました！<br>最終ステータス -> 残HP: <b>${gameState.hp}</b> | 残コスト: <b>${gameState.cost}</b>`,
+                    `5ターンを生き残りました！<br>最終ステータス -> 残HP: <b>${gameState.hp}</b> | 残コスト: <b>${gameState.cost}</b><br>クリアタイム: <b>${timeText}</b>`,
                     [{ label: 'もう一度プレイ', class: 'primary', action: resetGame }]
                 );
             }
@@ -709,13 +801,17 @@
         }
 
         function resetGame() {
+            resetTimer();
             gameState = {
                 hp: MAX_HP,
                 cost: MAX_COST,
                 turn: 1,
                 maxTurns: 5,
                 isGameOver: false,
-                currentEvent: null
+                currentEvent: null,
+                timerSeconds: 0,
+                timerInterval: null,
+                isTimerRunning: false
             };
             hideModal();
             showMainScreen();
@@ -727,3 +823,4 @@
         updateStatus();
     </script>
 </body>
+</html>
