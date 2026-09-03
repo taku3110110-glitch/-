@@ -660,6 +660,8 @@
             gameState.currentEvent = null;
             gameState.logs = [{ text: "【ミッション開始】5ターン生き残ってください。", type: "info" }];
             hideModal();
+            renderFromState();
+            syncStateToPlayer();
             showMainScreen();
         }
 
