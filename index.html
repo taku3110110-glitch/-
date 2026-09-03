@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>資格試験ミッション：5ターンを生き残れ</title>
+    <!-- リアルタイム通信ライブラリ -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -41,25 +43,38 @@
             border-radius: 12px;
             margin-bottom: 15px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
-        header h1 {
-            font-size: 1.3rem;
-            margin-bottom: 4px;
+        header h1 { font-size: 1.3rem; margin-bottom: 4px; }
+        header p { font-size: 0.8rem; opacity: 0.9; }
+
+        .role-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
         }
 
-        header p {
-            font-size: 0.8rem;
-            opacity: 0.9;
-        }
+        .screen { display: none; }
+        .screen.active { display: block; }
 
-        .screen {
-            display: none;
+        /* ロビー画面 */
+        .lobby-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+            margin-bottom: 20px;
         }
-
-        .screen.active {
-            display: block;
-        }
+        .lobby-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); }
+        .input-group { display: flex; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .input-text { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; text-align: center; width: 180px; }
 
         /* ステータスボード */
         .status-board {
@@ -81,19 +96,8 @@
             justify-content: space-between;
         }
 
-        .status-card .label {
-            font-size: 0.7rem;
-            color: #666;
-            margin-bottom: 2px;
-            font-weight: bold;
-        }
-
-        .status-card .value {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 2px;
-        }
+        .status-card .label { font-size: 0.7rem; color: #666; margin-bottom: 2px; font-weight: bold; }
+        .status-card .value { font-size: 1.1rem; font-weight: bold; color: var(--primary-color); margin-bottom: 2px; }
 
         .status-card.hp .value { color: var(--danger-color); }
         .status-card.cost .value { color: var(--warning-color); }
@@ -101,285 +105,74 @@
         .status-card.timer .value { color: var(--timer-color); }
 
         .gauge-container {
-            width: 100%;
-            height: 6px;
-            background-color: #e2e8f0;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 2px;
+            width: 100%; height: 6px; background-color: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 2px;
         }
+        .gauge-bar { height: 100%; width: 100%; transition: width 0.4s ease; border-radius: 3px; }
+        .gauge-bar.hp-bar { background-color: var(--danger-color); }
+        .gauge-bar.cost-bar { background-color: var(--warning-color); }
 
-        .gauge-bar {
-            height: 100%;
-            width: 100%;
-            transition: width 0.4s ease, background-color 0.4s ease;
-            border-radius: 3px;
-        }
-
-        .gauge-bar.hp-bar {
-            background-color: var(--danger-color);
-        }
-
-        .gauge-bar.cost-bar {
-            background-color: var(--warning-color);
-        }
-
-        /* タイマー専用コントロールバー */
-        .timer-control-bar {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
+        .timer-control-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
         .timer-btn {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: #ffffff; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px;
+            font-size: 0.8rem; font-weight: bold; color: var(--primary-color); cursor: pointer; transition: all 0.2s ease;
         }
-
-        .timer-btn:hover:not(:disabled) {
-            background: #f1f5f9;
-            border-color: #94a3b8;
-        }
-
-        .timer-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        @keyframes pulse-danger {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        .gauge-bar.danger-low {
-            animation: pulse-danger 1s infinite;
-        }
+        .timer-btn:hover:not(:disabled) { background: #f1f5f9; }
+        .timer-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .log-container {
-            background: #1e272e;
-            color: #00d8d6;
-            font-family: monospace;
-            padding: 12px;
-            border-radius: 10px;
-            height: 140px;
-            overflow-y: auto;
-            margin-bottom: 15px;
-            font-size: 0.85rem;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            background: #1e272e; color: #00d8d6; font-family: monospace; padding: 12px; border-radius: 10px;
+            height: 140px; overflow-y: auto; margin-bottom: 15px; font-size: 0.85rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
         }
-
-        .log-entry {
-            margin-bottom: 4px;
-            line-height: 1.4;
-        }
-
+        .log-entry { margin-bottom: 4px; line-height: 1.4; }
         .log-entry.alert { color: #ff5e57; }
         .log-entry.success { color: #0be881; }
         .log-entry.info { color: #ffd32a; }
 
         .main-btn {
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            width: 100%;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(41, 128, 185, 0.3);
-            transition: all 0.2s;
-            margin-bottom: 15px;
+            background: var(--accent-color); color: white; border: none; padding: 15px; border-radius: 10px;
+            font-size: 1.1rem; font-weight: bold; width: 100%; cursor: pointer; transition: all 0.2s; margin-bottom: 15px;
         }
+        .main-btn:hover { background: #2471a3; }
 
-        .main-btn:hover {
-            background: #2471a3;
-            transform: translateY(-2px);
-        }
-
-        .section-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .grid-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
+        .section-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); }
+        .grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
 
         .event-btn {
-            background: var(--card-bg);
-            border: 2px solid #cbd5e1;
-            border-radius: 10px;
-            padding: 14px 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            background: var(--card-bg); border: 2px solid #cbd5e1; border-radius: 10px; padding: 14px 10px;
+            text-align: center; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center;
         }
-
-        .event-btn:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent-color);
-            background-color: #ebf5fb;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        .event-title {
-            font-weight: bold;
-            font-size: 1.05rem;
-            color: var(--primary-color);
-            margin-bottom: 4px;
-        }
-
-        .event-dmg {
-            font-size: 0.8rem;
-            color: var(--danger-color);
-            font-weight: bold;
-        }
+        .event-btn:hover { border-color: var(--accent-color); background-color: #ebf5fb; }
+        .event-title { font-weight: bold; font-size: 1.05rem; color: var(--primary-color); margin-bottom: 4px; }
+        .event-dmg { font-size: 0.8rem; color: var(--danger-color); font-weight: bold; }
 
         .solution-card-btn {
-            background: var(--card-bg);
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            padding: 14px 10px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 90px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            background: var(--card-bg); border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 10px;
+            text-align: center; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; min-height: 90px;
         }
+        .solution-card-btn:hover { border-color: var(--accent-color); }
+        .card-name { font-weight: bold; font-size: 1rem; color: var(--primary-color); margin-bottom: 6px; }
+        .card-details { font-size: 0.8rem; color: #64748b; }
 
-        .solution-card-btn:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent-color);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        .card-name {
-            font-weight: bold;
-            font-size: 1rem;
-            color: var(--primary-color);
-            margin-bottom: 6px;
-        }
-
-        .card-details {
-            font-size: 0.8rem;
-            color: #64748b;
-        }
-
-        .back-nav-btn {
-            background: #64748b;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-
-        .reset-btn {
-            background: #94a3b8;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: bold;
-            width: 100%;
-        }
+        .back-nav-btn { background: #64748b; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: bold; margin-bottom: 15px; }
+        .reset-btn { background: #94a3b8; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; width: 100%; }
 
         .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6);
+            display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
-
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .modal {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            text-align: center;
-        }
-
-        .modal h2 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: var(--primary-color);
-        }
-
-        .modal-desc {
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-            color: #475569;
-        }
-
-        .modal-btns {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .modal-btn {
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal { background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; }
+        .modal h2 { font-size: 1.2rem; margin-bottom: 15px; color: var(--primary-color); }
+        .modal-desc { font-size: 0.9rem; margin-bottom: 20px; color: #475569; }
+        .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+        .modal-btn { padding: 12px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
         .modal-btn.primary { background: var(--accent-color); color: white; }
-        .modal-btn.secondary { background: #94a3b8; color: white; }
         .modal-btn.danger { background: var(--danger-color); color: white; }
         .modal-btn.success { background: var(--success-color); color: white; }
-        .modal-btn.cancel { background: #e2e8f0; color: #475569; margin-top: 5px; }
+        .modal-btn.cancel { background: #e2e8f0; color: #475569; }
+
+        /* プレイヤー用制限クラス */
+        body.is-player .gm-only { display: none !important; }
     </style>
 </head>
 <body>
@@ -387,66 +180,68 @@
     <header>
         <h1>資格試験ミッション</h1>
         <p>5ターンを生き残れ！</p>
+        <div class="role-badge" id="role-badge">未接続</div>
     </header>
 
-    <div id="main-screen" class="screen active">
-        <div class="status-board">
-            <div class="status-card turn">
-                <div class="label">ターン</div>
-                <div class="value" id="turn-val">1 / 5</div>
-            </div>
-            <div class="status-card hp">
-                <div class="label">HP</div>
-                <div class="value" id="hp-val">1100</div>
-                <div class="gauge-container">
-                    <div class="gauge-bar hp-bar" id="hp-gauge"></div>
-                </div>
-            </div>
-            <div class="status-card cost">
-                <div class="label">コスト</div>
-                <div class="value" id="cost-val">1200</div>
-                <div class="gauge-container">
-                    <div class="gauge-bar cost-bar" id="cost-gauge"></div>
-                </div>
-            </div>
-            <div class="status-card timer">
-                <div class="label">経過時間</div>
-                <div class="value" id="timer-val">00:00</div>
+    <!-- ロビー画面 -->
+    <div id="lobby-screen" class="screen active">
+        <div class="lobby-card">
+            <div class="lobby-title">👑 ゲームマスター (GM) として開始</div>
+            <button class="main-btn" onclick="startAsGM()">GMモードで部屋を作成</button>
+        </div>
+        <div class="lobby-card">
+            <div class="lobby-title">👤 参加者（プレイヤー）として接続</div>
+            <div class="input-group">
+                <input type="text" id="room-id-input" class="input-text" placeholder="ルームIDを入力" maxlength="4">
+                <button class="main-btn" style="width:auto; margin:0;" onclick="connectAsPlayer()">接続</button>
             </div>
         </div>
+    </div>
 
-        <div class="timer-control-bar">
+    <!-- ゲーム画面 -->
+    <div id="main-screen" class="screen">
+        <!-- GM用の接続コード表示 -->
+        <div class="gm-only" id="gm-info-bar" style="text-align:center; background:#e2e8f0; padding:8px; border-radius:6px; margin-bottom:12px; font-weight:bold; font-size:0.9rem;">
+            参加者用ルームID: <span id="display-room-id" style="color:var(--accent-color); font-size:1.2rem; letter-spacing:2px;">----</span>
+        </div>
+
+        <div class="status-board">
+            <div class="status-card turn"><div class="label">ターン</div><div class="value" id="turn-val">1 / 5</div></div>
+            <div class="status-card hp">
+                <div class="label">HP</div><div class="value" id="hp-val">1100</div>
+                <div class="gauge-container"><div class="gauge-bar hp-bar" id="hp-gauge"></div></div>
+            </div>
+            <div class="status-card cost">
+                <div class="label">コスト</div><div class="value" id="cost-val">1200</div>
+                <div class="gauge-container"><div class="gauge-bar cost-bar" id="cost-gauge"></div></div>
+            </div>
+            <div class="status-card timer"><div class="label">経過時間</div><div class="value" id="timer-val">00:00</div></div>
+        </div>
+
+        <div class="timer-control-bar gm-only">
             <button class="timer-btn" id="btn-timer-start" onclick="startTimer()">▶️ スタート</button>
             <button class="timer-btn" id="btn-timer-stop" onclick="stopTimer()">⏸️ 一時停止</button>
             <button class="timer-btn" id="btn-timer-reset" onclick="resetTimer()">🔄 リセット</button>
         </div>
 
-        <button class="main-btn" id="open-select-btn" onclick="showEventScreen()">⚠️ イベントを選択する</button>
+        <button class="main-btn gm-only" id="open-select-btn" onclick="showEventScreen()">⚠️ イベントを選択する</button>
 
         <div class="log-container" id="game-log">
             <div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>
         </div>
 
-        <button class="reset-btn" onclick="resetGame()">🔄 ゲームやり直し</button>
+        <button class="reset-btn gm-only" onclick="resetGame()">🔄 ゲームやり直し</button>
     </div>
 
     <div id="event-screen" class="screen">
-        <button class="back-nav-btn" onclick="showMainScreen()">⬅️ メイン画面に戻る</button>
-
-        <div class="section-title">
-            <span>発生したイベントを選択</span>
-        </div>
-
+        <button class="back-nav-btn gm-only" onclick="showMainScreen()">⬅️ メイン画面に戻る</button>
+        <div class="section-title"><span>発生したイベントを選択</span></div>
         <div class="grid-list" id="events-container"></div>
     </div>
 
     <div id="solution-screen" class="screen">
-        <button class="back-nav-btn" onclick="showEventScreen()">⬅️ イベント選択に戻る</button>
-
-        <div class="section-title">
-            <span id="selected-event-title">解決策を選択</span>
-        </div>
-
+        <button class="back-nav-btn gm-only" onclick="showEventScreen()">⬅️ イベント選択に戻る</button>
+        <div class="section-title"><span id="selected-event-title">解決策を選択</span></div>
         <div class="grid-list" id="solutions-container"></div>
     </div>
 
@@ -463,14 +258,8 @@
         const MAX_COST = 1200;
 
         const ACCIDENT_DAMAGE = {
-            "通信遮断": 250,
-            "地震": 300,
-            "水不足": 350,
-            "隕石": 400,
-            "停電": 300,
-            "大気汚染": 350,
-            "酸素不足": 350,
-            "パンデミック": 350
+            "通信遮断": 250, "地震": 300, "水不足": 350, "隕石": 400,
+            "停電": 300, "大気汚染": 350, "酸素不足": 350, "パンデミック": 350
         };
 
         const EVENT_SOLUTIONS = {
@@ -525,9 +314,17 @@
             currentEvent: null,
             timerSeconds: 0,
             timerInterval: null,
-            isTimerRunning: false
+            isTimerRunning: false,
+            currentScreen: 'main-screen',
+            logs: [{ text: "【ミッション開始】5ターン生き残ってください。", type: "info" }],
+            modal: { active: false, title: "", desc: "" }
         };
 
+        let peer = null;
+        let conn = null;
+        let isGM = false;
+
+        const lobbyScreen = document.getElementById('lobby-screen');
         const mainScreen = document.getElementById('main-screen');
         const eventScreen = document.getElementById('event-screen');
         const solutionScreen = document.getElementById('solution-screen');
@@ -540,9 +337,6 @@
         const costGaugeEl = document.getElementById('cost-gauge');
         const logEl = document.getElementById('game-log');
         
-        const btnTimerStart = document.getElementById('btn-timer-start');
-        const btnTimerStop = document.getElementById('btn-timer-stop');
-        
         const eventsContainer = document.getElementById('events-container');
         const solutionsContainer = document.getElementById('solutions-container');
         const selectedEventTitle = document.getElementById('selected-event-title');
@@ -552,35 +346,112 @@
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
 
-        // タイマー制御関数
+        // 通信初期化
+        function startAsGM() {
+            isGM = true;
+            document.getElementById('role-badge').innerText = "👑 GM";
+            const roomId = Math.floor(1000 + Math.random() * 9000).toString();
+            document.getElementById('display-room-id').innerText = roomId;
+
+            peer = new Peer('exam-game-' + roomId);
+            peer.on('open', () => {
+                showScreen('main-screen');
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                conn.on('open', () => {
+                    syncStateToPlayer();
+                });
+            });
+        }
+
+        function connectAsPlayer() {
+            isGM = false;
+            document.body.classList.add('is-player');
+            document.getElementById('role-badge').innerText = "👤 プレイヤー";
+            const roomId = document.getElementById('room-id-input').value.trim();
+
+            if (!roomId) { alert("ルームIDを入力してください"); return; }
+
+            peer = new Peer();
+            peer.on('open', () => {
+                conn = peer.connect('exam-game-' + roomId);
+                conn.on('open', () => {
+                    showScreen('main-screen');
+                });
+                conn.on('data', (data) => {
+                    gameState = data;
+                    renderFromState();
+                });
+            });
+        }
+
+        function syncStateToPlayer() {
+            if (isGM && conn && conn.open) {
+                conn.send(gameState);
+            }
+        }
+
+        function renderFromState() {
+            updateStatus();
+            renderLogs();
+            showScreen(gameState.currentScreen, false);
+            if (gameState.currentEvent) {
+                selectedEventTitle.innerText = `「${gameState.currentEvent}」への解決策を選択`;
+                renderSolutions(gameState.currentEvent);
+            }
+            if (gameState.modal.active) {
+                modalTitle.innerText = gameState.modal.title;
+                modalDesc.innerHTML = gameState.modal.desc;
+                modalOverlay.classList.add('active');
+            } else {
+                modalOverlay.classList.remove('active');
+            }
+        }
+
+        function showScreen(screenId, sync = true) {
+            gameState.currentScreen = screenId;
+            lobbyScreen.classList.remove('active');
+            mainScreen.classList.remove('active');
+            eventScreen.classList.remove('active');
+            solutionScreen.classList.remove('active');
+
+            document.getElementById(screenId).classList.add('active');
+            if (sync) syncStateToPlayer();
+        }
+
+        function showMainScreen() { showScreen('main-screen'); }
+        function showEventScreen() { if (!gameState.isGameOver) showScreen('event-screen'); }
+
+        function showSolutionScreen(eventName) {
+            gameState.currentEvent = eventName;
+            selectedEventTitle.innerText = `「${eventName}」への解決策を選択`;
+            renderSolutions(eventName);
+            showScreen('solution-screen');
+        }
+
         function startTimer() {
             if (gameState.isTimerRunning) return;
             gameState.isTimerRunning = true;
-            btnTimerStart.disabled = true;
-            btnTimerStop.disabled = false;
-
             gameState.timerInterval = setInterval(() => {
                 gameState.timerSeconds++;
                 updateTimerDisplay();
+                syncStateToPlayer();
             }, 1000);
         }
 
         function stopTimer() {
-            if (!gameState.isTimerRunning) return;
             gameState.isTimerRunning = false;
-            btnTimerStart.disabled = false;
-            btnTimerStop.disabled = true;
-
-            if (gameState.timerInterval) {
-                clearInterval(gameState.timerInterval);
-                gameState.timerInterval = null;
-            }
+            if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+            syncStateToPlayer();
         }
 
         function resetTimer() {
             stopTimer();
             gameState.timerSeconds = 0;
             updateTimerDisplay();
+            syncStateToPlayer();
         }
 
         function updateTimerDisplay() {
@@ -589,61 +460,37 @@
             timerValEl.innerText = `${mins}:${secs}`;
         }
 
-        function hideAllScreens() {
-            mainScreen.classList.remove('active');
-            eventScreen.classList.remove('active');
-            solutionScreen.classList.remove('active');
-        }
-
-        function showMainScreen() {
-            hideAllScreens();
-            mainScreen.classList.add('active');
-        }
-
-        function showEventScreen() {
-            if (gameState.isGameOver) return;
-            hideAllScreens();
-            eventScreen.classList.add('active');
-        }
-
-        function showSolutionScreen(eventName) {
-            gameState.currentEvent = eventName;
-            selectedEventTitle.innerText = `「${eventName}」への解決策を選択`;
-            renderSolutions(eventName);
-            hideAllScreens();
-            solutionScreen.classList.add('active');
-        }
-
         function updateStatus() {
             const currentHp = Math.max(0, gameState.hp);
             const currentCost = Math.max(0, gameState.cost);
-
             hpValEl.innerText = currentHp;
             costValEl.innerText = currentCost;
             turnValEl.innerText = `${gameState.turn} / ${gameState.maxTurns}`;
+            updateTimerDisplay();
 
             const hpPct = Math.min(100, Math.max(0, (currentHp / MAX_HP) * 100));
             const costPct = Math.min(100, Math.max(0, (currentCost / MAX_COST) * 100));
 
             hpGaugeEl.style.width = `${hpPct}%`;
             costGaugeEl.style.width = `${costPct}%`;
-
-            if (hpPct <= 30) {
-                hpGaugeEl.classList.add('danger-low');
-            } else {
-                hpGaugeEl.classList.remove('danger-low');
-            }
         }
 
         function addLog(text, type = '') {
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            entry.innerText = text;
-            logEl.appendChild(entry);
+            gameState.logs.push({ text, type });
+            renderLogs();
+        }
+
+        function renderLogs() {
+            logEl.innerHTML = '';
+            gameState.logs.forEach(l => {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${l.type}`;
+                entry.innerText = l.text;
+                logEl.appendChild(entry);
+            });
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        // 素のダメージを表示するように更新
         function renderEvents() {
             eventsContainer.innerHTML = '';
             for (const eventName of Object.keys(EVENT_SOLUTIONS)) {
@@ -661,7 +508,6 @@
         function renderSolutions(eventName) {
             solutionsContainer.innerHTML = '';
             const solutions = EVENT_SOLUTIONS[eventName];
-
             solutions.forEach(sol => {
                 const btn = document.createElement('div');
                 btn.className = 'solution-card-btn';
@@ -675,8 +521,7 @@
         }
 
         function autoProcessSolution(eventName, solData) {
-            const { name: cardName, cost: reqCost } = solData;
-
+            const { cost: reqCost } = solData;
             if (gameState.cost >= reqCost) {
                 processTurn(eventName, solData, true);
             } else {
@@ -688,49 +533,37 @@
         function processTurn(eventName, solData, useCost) {
             hideModal();
             const { name: cardName, dmg, cost: reqCost } = solData;
-            let damageTaken = 0;
 
             if (!useCost) {
-                damageTaken = ACCIDENT_DAMAGE[eventName];
+                const damageTaken = ACCIDENT_DAMAGE[eventName];
                 addLog(`Turn ${gameState.turn}: イベント【${eventName}】の被害 (${damageTaken}) をそのまま適用`, 'alert');
                 applyDamageAndNext(cardName, damageTaken, false);
             } else {
                 gameState.cost -= reqCost;
-
                 if (dmg === 'X') {
                     showModal(
                         `【判定】${cardName}`,
                         '判定結果を選択してください。',
                         [
                             {
-                                label: '成功 (ダメージ: 0)',
-                                class: 'success',
-                                action: () => {
+                                label: '成功 (ダメージ: 0)', class: 'success', action: () => {
                                     hideModal();
                                     addLog(`Turn ${gameState.turn}: 【${cardName}】成功！ ダメージ 0`, 'success');
                                     applyDamageAndNext(cardName, 0, true);
                                 }
                             },
                             {
-                                label: '失敗 (ダメージ: 400)',
-                                class: 'danger',
-                                action: () => {
+                                label: '失敗 (ダメージ: 400)', class: 'danger', action: () => {
                                     hideModal();
                                     addLog(`Turn ${gameState.turn}: 【${cardName}】失敗... 400 ダメージ`, 'alert');
                                     applyDamageAndNext(cardName, 400, true);
                                 }
-                            },
-                            {
-                                label: '↩️ 戻る',
-                                class: 'cancel',
-                                action: () => showSolutionScreen(eventName)
                             }
                         ]
                     );
                 } else {
-                    damageTaken = dmg;
-                    addLog(`Turn ${gameState.turn}: 【${eventName}】に対し【${cardName}】を実行 (コスト -${reqCost}, ダメージ ${damageTaken})`);
-                    applyDamageAndNext(cardName, damageTaken, true);
+                    addLog(`Turn ${gameState.turn}: 【${eventName}】に対し【${cardName}】を実行 (コスト -${reqCost}, ダメージ ${dmg})`);
+                    applyDamageAndNext(cardName, dmg, true);
                 }
             }
         }
@@ -738,7 +571,6 @@
         function applyDamageAndNext(cardName, damageTaken, usedCost) {
             gameState.hp -= damageTaken;
             updateStatus();
-
             showMainScreen();
 
             if (gameState.hp <= 0) {
@@ -746,11 +578,9 @@
                 stopTimer();
                 const timeText = timerValEl.innerText;
                 addLog(`💀 ゲームオーバー！ HPが0になりました。(タイム: ${timeText})`, 'alert');
-                showModal(
-                    '💀 ゲームオーバー 💀',
-                    `HPが0以下になりました。<br>経過時間: <b>${timeText}</b>`,
-                    [{ label: 'やり直す', class: 'primary', action: resetGame }]
-                );
+                showModal('💀 ゲームオーバー 💀', `HPが0以下になりました。<br>経過時間: <b>${timeText}</b>`, [
+                    { label: 'やり直す', class: 'primary', action: resetGame }
+                ]);
                 return;
             }
 
@@ -767,16 +597,16 @@
                 gameState.isGameOver = true;
                 stopTimer();
                 const timeText = timerValEl.innerText;
-                addLog(`🎉 【試験終了】5ターンを生き残りました！ (残HP: ${gameState.hp}, 残コスト: ${gameState.cost}, タイム: ${timeText})`, 'success');
-                showModal(
-                    '🎉 ミッションクリア！ 🎉',
-                    `5ターンを生き残りました！<br>最終ステータス -> 残HP: <b>${gameState.hp}</b> | 残コスト: <b>${gameState.cost}</b><br>クリアタイム: <b>${timeText}</b>`,
-                    [{ label: 'もう一度プレイ', class: 'primary', action: resetGame }]
-                );
+                addLog(`🎉 【試験終了】5ターンを生き残りました！ (タイム: ${timeText})`, 'success');
+                showModal('🎉 ミッションクリア！ 🎉', `5ターンを生き残りました！<br>クリアタイム: <b>${timeText}</b>`, [
+                    { label: 'もう一度プレイ', class: 'primary', action: resetGame }
+                ]);
             }
+            syncStateToPlayer();
         }
 
         function showModal(title, desc, buttons) {
+            gameState.modal = { active: true, title, desc };
             modalTitle.innerText = title;
             modalDesc.innerHTML = desc;
             modalBtns.innerHTML = '';
@@ -790,29 +620,25 @@
             });
 
             modalOverlay.classList.add('active');
+            syncStateToPlayer();
         }
 
         function hideModal() {
+            gameState.modal.active = false;
             modalOverlay.classList.remove('active');
+            syncStateToPlayer();
         }
 
         function resetGame() {
             resetTimer();
-            gameState = {
-                hp: MAX_HP,
-                cost: MAX_COST,
-                turn: 1,
-                maxTurns: 5,
-                isGameOver: false,
-                currentEvent: null,
-                timerSeconds: 0,
-                timerInterval: null,
-                isTimerRunning: false
-            };
+            gameState.hp = MAX_HP;
+            gameState.cost = MAX_COST;
+            gameState.turn = 1;
+            gameState.isGameOver = false;
+            gameState.currentEvent = null;
+            gameState.logs = [{ text: "【ミッション開始】5ターン生き残ってください。", type: "info" }];
             hideModal();
             showMainScreen();
-            logEl.innerHTML = '<div class="log-entry info">【ミッション開始】5ターン生き残ってください。</div>';
-            updateStatus();
         }
 
         renderEvents();
