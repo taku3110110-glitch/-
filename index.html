@@ -61,7 +61,7 @@
             display: block;
         }
 
-        /* ステータスボード（4列レイアウト） */
+        /* ステータスボード */
         .status-board {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -228,14 +228,15 @@
             background: var(--card-bg);
             border: 2px solid #cbd5e1;
             border-radius: 10px;
-            padding: 18px 10px;
+            padding: 14px 10px;
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-            font-weight: bold;
-            font-size: 1.05rem;
-            color: var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .event-btn:hover {
@@ -243,6 +244,19 @@
             border-color: var(--accent-color);
             background-color: #ebf5fb;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .event-title {
+            font-weight: bold;
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        .event-dmg {
+            font-size: 0.8rem;
+            color: var(--danger-color);
+            font-weight: bold;
         }
 
         .solution-card-btn {
@@ -629,12 +643,16 @@
             logEl.scrollTop = logEl.scrollHeight;
         }
 
+        // 素のダメージを表示するように更新
         function renderEvents() {
             eventsContainer.innerHTML = '';
             for (const eventName of Object.keys(EVENT_SOLUTIONS)) {
                 const btn = document.createElement('div');
                 btn.className = 'event-btn';
-                btn.innerText = eventName;
+                btn.innerHTML = `
+                    <div class="event-title">${eventName}</div>
+                    <div class="event-dmg">素の被害: ${ACCIDENT_DAMAGE[eventName]}</div>
+                `;
                 btn.onclick = () => showSolutionScreen(eventName);
                 eventsContainer.appendChild(btn);
             }
@@ -651,35 +669,20 @@
                     <div class="card-name">${sol.name}</div>
                     <div class="card-details">ダメージ: ${sol.dmg}<br>コスト: ${sol.cost}</div>
                 `;
-                btn.onclick = () => askUseCost(eventName, sol);
+                btn.onclick = () => autoProcessSolution(eventName, sol);
                 solutionsContainer.appendChild(btn);
             });
         }
 
-        function askUseCost(eventName, solData) {
-            const { name, dmg, cost } = solData;
+        function autoProcessSolution(eventName, solData) {
+            const { name: cardName, cost: reqCost } = solData;
 
-            showModal(
-                `コスト使用の選択: 【${name}】`,
-                `イベント: ${eventName}<br>コスト: ${cost} / 想定ダメージ: ${dmg}`,
-                [
-                    {
-                        label: `コストを使用する (${cost})`,
-                        class: 'primary',
-                        action: () => processTurn(eventName, solData, true)
-                    },
-                    {
-                        label: `コストを使用しない (受けるダメージ: ${ACCIDENT_DAMAGE[eventName]})`,
-                        class: 'secondary',
-                        action: () => processTurn(eventName, solData, false)
-                    },
-                    {
-                        label: '↩️ 解決策選択に戻る',
-                        class: 'cancel',
-                        action: hideModal
-                    }
-                ]
-            );
+            if (gameState.cost >= reqCost) {
+                processTurn(eventName, solData, true);
+            } else {
+                addLog(`⚠️ コスト不足 (残り: ${gameState.cost} / 必要: ${reqCost}) のため【コスト不使用】処理が適用されました。`, 'alert');
+                processTurn(eventName, solData, false);
+            }
         }
 
         function processTurn(eventName, solData, useCost) {
@@ -689,17 +692,10 @@
 
             if (!useCost) {
                 damageTaken = ACCIDENT_DAMAGE[eventName];
-                addLog(`Turn ${gameState.turn}: コスト不使用 -> イベント【${eventName}】の被害 (${damageTaken}) を受託`, 'alert');
+                addLog(`Turn ${gameState.turn}: イベント【${eventName}】の被害 (${damageTaken}) をそのまま適用`, 'alert');
                 applyDamageAndNext(cardName, damageTaken, false);
             } else {
-                if (gameState.cost < reqCost) {
-                    const shortage = reqCost - gameState.cost;
-                    addLog(`⚠️ コスト不足！(不足: ${shortage}) 不足分をHPから減算`, 'alert');
-                    gameState.hp -= shortage;
-                    gameState.cost = 0;
-                } else {
-                    gameState.cost -= reqCost;
-                }
+                gameState.cost -= reqCost;
 
                 if (dmg === 'X') {
                     showModal(
@@ -727,13 +723,13 @@
                             {
                                 label: '↩️ 戻る',
                                 class: 'cancel',
-                                action: () => askUseCost(eventName, solData)
+                                action: () => showSolutionScreen(eventName)
                             }
                         ]
                     );
                 } else {
                     damageTaken = dmg;
-                    addLog(`Turn ${gameState.turn}: 【${eventName}】に対し【${cardName}】を実行 (ダメージ ${damageTaken})`);
+                    addLog(`Turn ${gameState.turn}: 【${eventName}】に対し【${cardName}】を実行 (コスト -${reqCost}, ダメージ ${damageTaken})`);
                     applyDamageAndNext(cardName, damageTaken, true);
                 }
             }
