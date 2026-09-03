@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>資格試験ミッション：5ターンを生き残れ</title>
-    <!-- リアルタイム通信ライブラリ -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -183,7 +182,6 @@
         <div class="role-badge" id="role-badge">未接続</div>
     </header>
 
-    <!-- ロビー画面 -->
     <div id="lobby-screen" class="screen active">
         <div class="lobby-card">
             <div class="lobby-title">👑 ゲームマスター (GM) として開始</div>
@@ -198,9 +196,7 @@
         </div>
     </div>
 
-    <!-- ゲーム画面 -->
     <div id="main-screen" class="screen">
-        <!-- GM用の接続コード表示 -->
         <div class="gm-only" id="gm-info-bar" style="text-align:center; background:#e2e8f0; padding:8px; border-radius:6px; margin-bottom:12px; font-weight:bold; font-size:0.9rem;">
             参加者用ルームID: <span id="display-room-id" style="color:var(--accent-color); font-size:1.2rem; letter-spacing:2px;">----</span>
         </div>
@@ -346,7 +342,6 @@
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
 
-        // 通信初期化
         function startAsGM() {
             isGM = true;
             document.getElementById('role-badge').innerText = "👑 GM";
@@ -396,11 +391,18 @@
         function renderFromState() {
             updateStatus();
             renderLogs();
-            showScreen(gameState.currentScreen, false);
-            if (gameState.currentEvent) {
-                selectedEventTitle.innerText = `「${gameState.currentEvent}」への解決策を選択`;
-                renderSolutions(gameState.currentEvent);
+            
+            // プレイヤー端末の場合は画面遷移せず、常にメイン画面に固定
+            if (isGM) {
+                showScreen(gameState.currentScreen, false);
+                if (gameState.currentEvent) {
+                    selectedEventTitle.innerText = `「${gameState.currentEvent}」への解決策を選択`;
+                    renderSolutions(gameState.currentEvent);
+                }
+            } else {
+                showScreen('main-screen', false);
             }
+
             if (gameState.modal.active) {
                 modalTitle.innerText = gameState.modal.title;
                 modalDesc.innerHTML = gameState.modal.desc;
