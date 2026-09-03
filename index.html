@@ -155,7 +155,8 @@
         .card-details { font-size: 0.8rem; color: #64748b; }
 
         .back-nav-btn { background: #64748b; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: bold; margin-bottom: 15px; }
-        .reset-btn { background: #94a3b8; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; width: 100%; }
+        .reset-btn { background: #94a3b8; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; width: 100%; margin-bottom: 8px; }
+        .lobby-nav-btn { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; width: 100%; }
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6);
@@ -207,6 +208,12 @@
 
         body.is-player .log-entry {
             margin-bottom: 8px;
+        }
+
+        body.is-player .lobby-nav-btn {
+            padding: 14px 15px;
+            font-size: 1rem;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -267,6 +274,7 @@
         </div>
 
         <button class="reset-btn gm-only" onclick="resetGame()">🔄 ゲームやり直し</button>
+        <button class="lobby-nav-btn" onclick="backToLobby()">🏠 モード選択に戻る</button>
     </div>
 
     <div id="event-screen" class="screen">
@@ -384,20 +392,25 @@
 
         function startSoloPlay() {
             isGM = true;
+            document.body.classList.remove('is-player');
             document.getElementById('role-badge').innerText = "📱 ソロ";
             document.getElementById('gm-info-bar').style.display = 'none';
+            resetGame();
             showScreen('main-screen');
         }
 
         function startAsGM() {
             isGM = true;
+            document.body.classList.remove('is-player');
             document.getElementById('role-badge').innerText = "👑 GM";
             document.getElementById('gm-info-bar').style.display = 'block';
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('display-room-id').innerText = roomId;
 
+            if (peer) peer.destroy();
             peer = new Peer('exam-game-' + roomId);
             peer.on('open', () => {
+                resetGame();
                 showScreen('main-screen');
             });
 
@@ -417,6 +430,7 @@
 
             if (!roomId) { alert("ルームIDを入力してください"); return; }
 
+            if (peer) peer.destroy();
             peer = new Peer();
             peer.on('open', () => {
                 conn = peer.connect('exam-game-' + roomId);
@@ -428,6 +442,18 @@
                     renderFromState();
                 });
             });
+        }
+
+        function backToLobby() {
+            stopTimer();
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            conn = null;
+            document.body.classList.remove('is-player');
+            document.getElementById('role-badge').innerText = "未接続";
+            showScreen('lobby-screen', false);
         }
 
         function syncStateToPlayer() {
