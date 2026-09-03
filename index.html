@@ -69,10 +69,10 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
-        .lobby-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); }
-        .input-group { display: flex; gap: 8px; justify-content: center; margin-bottom: 15px; }
+        .lobby-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; color: var(--primary-color); }
+        .input-group { display: flex; gap: 8px; justify-content: center; margin-bottom: 5px; }
         .input-text { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; text-align: center; width: 180px; }
 
         /* ステータスボード */
@@ -132,6 +132,8 @@
             font-size: 1.1rem; font-weight: bold; width: 100%; cursor: pointer; transition: all 0.2s; margin-bottom: 15px;
         }
         .main-btn:hover { background: #2471a3; }
+        .main-btn.solo { background: #2ecc71; margin-bottom: 0; }
+        .main-btn.solo:hover { background: #27ae60; }
 
         .section-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; color: var(--primary-color); }
         .grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
@@ -184,11 +186,15 @@
 
     <div id="lobby-screen" class="screen active">
         <div class="lobby-card">
-            <div class="lobby-title">👑 ゲームマスター (GM) として開始</div>
-            <button class="main-btn" onclick="startAsGM()">GMモードで部屋を作成</button>
+            <div class="lobby-title">📱 1台でプレイ（通信なし）</div>
+            <button class="main-btn solo" onclick="startSoloPlay()">ソロプレイを開始</button>
         </div>
         <div class="lobby-card">
-            <div class="lobby-title">👤 参加者（プレイヤー）として接続</div>
+            <div class="lobby-title">👑 2台でプレイ：ゲームマスター (GM)</div>
+            <button class="main-btn" style="margin-bottom:0;" onclick="startAsGM()">GMモードで部屋を作成</button>
+        </div>
+        <div class="lobby-card">
+            <div class="lobby-title">👤 2台でプレイ：参加者（プレイヤー）</div>
             <div class="input-group">
                 <input type="text" id="room-id-input" class="input-text" placeholder="ルームIDを入力" maxlength="4">
                 <button class="main-btn" style="width:auto; margin:0;" onclick="connectAsPlayer()">接続</button>
@@ -318,7 +324,7 @@
 
         let peer = null;
         let conn = null;
-        let isGM = false;
+        let isGM = true;
 
         const lobbyScreen = document.getElementById('lobby-screen');
         const mainScreen = document.getElementById('main-screen');
@@ -342,9 +348,17 @@
         const modalDesc = document.getElementById('modal-desc');
         const modalBtns = document.getElementById('modal-btns');
 
+        function startSoloPlay() {
+            isGM = true;
+            document.getElementById('role-badge').innerText = "📱 ソロ";
+            document.getElementById('gm-info-bar').style.display = 'none';
+            showScreen('main-screen');
+        }
+
         function startAsGM() {
             isGM = true;
             document.getElementById('role-badge').innerText = "👑 GM";
+            document.getElementById('gm-info-bar').style.display = 'block';
             const roomId = Math.floor(1000 + Math.random() * 9000).toString();
             document.getElementById('display-room-id').innerText = roomId;
 
@@ -392,7 +406,6 @@
             updateStatus();
             renderLogs();
             
-            // プレイヤー端末の場合は画面遷移せず、常にメイン画面に固定
             if (isGM) {
                 showScreen(gameState.currentScreen, false);
                 if (gameState.currentEvent) {
@@ -541,7 +554,6 @@
                 addLog(`Turn ${gameState.turn}: イベント【${eventName}】の被害 (${damageTaken}) をそのまま適用`, 'alert');
                 applyDamageAndNext(cardName, damageTaken, false);
             } else {
-                gameState.cost -= reqCost;
                 if (dmg === 'X') {
                     showModal(
                         `【判定】${cardName}`,
@@ -550,6 +562,7 @@
                             {
                                 label: '成功 (ダメージ: 0)', class: 'success', action: () => {
                                     hideModal();
+                                    gameState.cost -= reqCost;
                                     addLog(`Turn ${gameState.turn}: 【${cardName}】成功！ ダメージ 0`, 'success');
                                     applyDamageAndNext(cardName, 0, true);
                                 }
@@ -557,13 +570,20 @@
                             {
                                 label: '失敗 (ダメージ: 400)', class: 'danger', action: () => {
                                     hideModal();
+                                    gameState.cost -= reqCost;
                                     addLog(`Turn ${gameState.turn}: 【${cardName}】失敗... 400 ダメージ`, 'alert');
                                     applyDamageAndNext(cardName, 400, true);
+                                }
+                            },
+                            {
+                                label: 'キャンセル（戻る）', class: 'cancel', action: () => {
+                                    hideModal();
                                 }
                             }
                         ]
                     );
                 } else {
+                    gameState.cost -= reqCost;
                     addLog(`Turn ${gameState.turn}: 【${eventName}】に対し【${cardName}】を実行 (コスト -${reqCost}, ダメージ ${dmg})`);
                     applyDamageAndNext(cardName, dmg, true);
                 }
